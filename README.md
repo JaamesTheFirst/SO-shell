@@ -1,6 +1,6 @@
 # SO-shell
 
-This repository contains your own `soshell` implementation in `src/`, separate from the class sheets in `docs/` and the reference project in `example/FP05/`.
+This repository contains my own `soshell` implementation (in `src/`)
 
 Build with:
 
