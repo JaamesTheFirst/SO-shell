@@ -1,6 +1,6 @@
 CC = cc
 CFLAGS = -Wall -Wextra -Wpedantic -std=c11 -Isrc
-LDLIBS = -lm
+LDLIBS = -lm -lpthread -lreadline
 
 SRC = $(wildcard src/*.c)
 OBJ = $(SRC:.c=.o)

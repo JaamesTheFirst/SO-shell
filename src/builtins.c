@@ -1,6 +1,7 @@
 #include "soshell.h"
 
 #include <errno.h>
+#include <pthread.h>
 #include <limits.h>
 #include <pwd.h>
 #include <stdint.h>
@@ -9,6 +10,32 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+typedef struct
+{
+  char src[1024];
+  char dst[1024];
+} socpth_args_t;
+
+static void *socpth_thread(void *arg)
+{
+  socpth_args_t *args = (socpth_args_t *)arg;
+  char src[1024];
+  char dst[1024];
+  memcpy(src, args->src, sizeof(src));
+  memcpy(dst, args->dst, sizeof(dst));
+  free(args);
+
+  int result = shell_copy_file(src, dst);
+
+  if (result == 0)
+    printf("\n[socpth: %s -> %s concluido]\n", src, dst);
+  else
+    fprintf(stderr, "\n[socpth: copia de %s falhou]\n", src);
+  fflush(stdout);
+
+  return NULL;
+}
 
 static int is_home_shortcut(const char *path)
 {
@@ -56,6 +83,9 @@ static void print_shell_help(void)
   puts("  <, >, >>, 2>        redirecionamentos");
   puts("  comando1 | comando2 pipe simples");
   puts("  comando &           executa em background");
+  puts("  socpth orig dest    copia ficheiro em blocos numa thread");
+  puts("  setx ficheiro       chmod +x num ficheiro");
+  puts("  removerl ficheiro   chmod -r num ficheiro");
   puts("  outros comandos     executados com execvp()");
 }
 
@@ -275,6 +305,56 @@ int run_builtin(char *prompt, size_t prompt_size, char **argv, int argc)
   if (strcmp(argv[0], "fileinfo") == 0)
   {
     shell_file_info();
+    return 1;
+  }
+
+  if (strcmp(argv[0], "socpth") == 0)
+  {
+    if (argc != 3)
+    {
+      fprintf(stderr, "usage: socpth source destination\n");
+      return 1;
+    }
+
+    socpth_args_t *args = malloc(sizeof(*args));
+    if (args == NULL)
+    {
+      perror("malloc");
+      return 1;
+    }
+    snprintf(args->src, sizeof(args->src), "%s", argv[1]);
+    snprintf(args->dst, sizeof(args->dst), "%s", argv[2]);
+
+    pthread_t tid;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    pthread_create(&tid, &attr, socpth_thread, args);
+    pthread_attr_destroy(&attr);
+    return 1;
+  }
+
+  if (strcmp(argv[0], "setx") == 0)
+  {
+    if (argc != 2)
+    {
+      fprintf(stderr, "usage: setx <file>\n");
+      return 1;
+    }
+    char *chmod_argv[] = {"chmod", "+x", argv[1], NULL};
+    execute_command(chmod_argv, 3);
+    return 1;
+  }
+
+  if (strcmp(argv[0], "removerl") == 0)
+  {
+    if (argc != 2)
+    {
+      fprintf(stderr, "usage: removerl <file>\n");
+      return 1;
+    }
+    char *chmod_argv[] = {"chmod", "-r", argv[1], NULL};
+    execute_command(chmod_argv, 3);
     return 1;
   }
 

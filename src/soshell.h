@@ -11,7 +11,6 @@
 int parse_line(char *line, char **argv, int max_args);
 int run_builtin(char *prompt, size_t prompt_size, char **argv, int argc);
 void execute_command(char **argv, int argc);
-void reap_background_processes(void);
 int shell_copy_file(const char *source_path, const char *dest_path);
 void shell_print_epsilon(void);
 int shell_calc(const char *op, const char *left_text, const char *right_text);

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -150,6 +151,47 @@ static void exec_segment(char **argv, int argc)
   _exit(1);
 }
 
+static pthread_mutex_t output_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+typedef struct
+{
+  pid_t pid;
+} bg_wait_args_t;
+
+static void *bg_wait_thread(void *arg)
+{
+  bg_wait_args_t *args = (bg_wait_args_t *)arg;
+  pid_t pid = args->pid;
+  int status;
+  free(args);
+
+  while (waitpid(pid, &status, 0) < 0 && errno == EINTR)
+    ;
+
+  pthread_mutex_lock(&output_mutex);
+  printf("\n[processo %ld terminou]\n", (long)pid);
+  fflush(stdout);
+  pthread_mutex_unlock(&output_mutex);
+
+  return NULL;
+}
+
+static void spawn_bg_waiter(pid_t pid)
+{
+  bg_wait_args_t *args = malloc(sizeof(*args));
+  pthread_t tid;
+  pthread_attr_t attr;
+
+  if (args == NULL)
+    return;
+  args->pid = pid;
+
+  pthread_attr_init(&attr);
+  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+  pthread_create(&tid, &attr, bg_wait_thread, args);
+  pthread_attr_destroy(&attr);
+}
+
 static void start_simple_command(char **argv, int argc, int background)
 {
   pid_t pid = fork();
@@ -164,7 +206,12 @@ static void start_simple_command(char **argv, int argc, int background)
     exec_segment(argv, argc);
 
   if (background)
+  {
+    pthread_mutex_lock(&output_mutex);
     printf("[background pid %ld]\n", (long)pid);
+    pthread_mutex_unlock(&output_mutex);
+    spawn_bg_waiter(pid);
+  }
   else
     wait_for_child(pid);
 }
@@ -216,7 +263,11 @@ static void start_pipeline(char **argv, int argc, int pipe_index, int background
 
   if (background)
   {
+    pthread_mutex_lock(&output_mutex);
     printf("[background pids %ld %ld]\n", (long)left_pid, (long)right_pid);
+    pthread_mutex_unlock(&output_mutex);
+    spawn_bg_waiter(left_pid);
+    spawn_bg_waiter(right_pid);
     return;
   }
 
@@ -254,12 +305,3 @@ void execute_command(char **argv, int argc)
   start_simple_command(argv, argc, background);
 }
 
-void reap_background_processes(void)
-{
-  int saved_errno = errno;
-
-  while (waitpid(-1, NULL, WNOHANG) > 0)
-    ;
-
-  errno = saved_errno;
-}
