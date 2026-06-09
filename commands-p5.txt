@@ -1,0 +1,17 @@
+epsilon
+calc + 2 3
+calc * 2 3.5
+calc / 2 0
+bits & 11 14
+bits | 11 14
+bits ^ 11 14
+displayBitOps 11 14
+isgif src/geef.gif
+isjpeg example/FP05/image.jpg
+openfile src/soshell.h
+isValid 3
+read 3 18
+fileinfo
+closefd 3
+isValid 3
+sair
