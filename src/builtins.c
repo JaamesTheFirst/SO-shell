@@ -86,7 +86,7 @@ static void print_shell_help(void)
   puts("  socpth orig dest    copia ficheiro em blocos numa thread");
   puts("  setx ficheiro       chmod +x num ficheiro");
   puts("  removerl ficheiro   chmod -r num ficheiro");
-  puts("  outros comandos     executados com execvp()");
+  puts("  outros comandos     apenas ls, cat, date sao permitidos (safeexec)");
 }
 
 int run_builtin(char *prompt, size_t prompt_size, char **argv, int argc)
