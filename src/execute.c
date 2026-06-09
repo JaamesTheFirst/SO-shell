@@ -27,6 +27,24 @@ static void wait_for_child(pid_t pid)
   }
 }
 
+static const char *safe_commands[] = {"ls", "cat", "date", NULL};
+
+static void safeexec(char **argv)
+{
+  int index;
+  for (index = 0; safe_commands[index] != NULL; index++)
+  {
+    if (strcmp(argv[0], safe_commands[index]) == 0)
+    {
+      execvp(argv[0], argv);
+      perror(argv[0]);
+      _exit(1);
+    }
+  }
+  fprintf(stderr, "%s: comando nao permitido\n", argv[0]);
+  _exit(1);
+}
+
 static int find_pipe_index(char **argv, int argc)
 {
   int index;
@@ -146,9 +164,7 @@ static void exec_segment(char **argv, int argc)
   redirect_fd(output_fd, STDOUT_FILENO);
   redirect_fd(error_fd, STDERR_FILENO);
 
-  execvp(exec_argv[0], exec_argv);
-  perror(exec_argv[0]);
-  _exit(1);
+  safeexec(exec_argv);
 }
 
 static pthread_mutex_t output_mutex = PTHREAD_MUTEX_INITIALIZER;
